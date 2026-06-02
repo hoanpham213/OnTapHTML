@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quản Lý Sinh Viên</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ================================================
+       TOAST CONTAINER
+       Toast notification sẽ được inject vào đây bởi app.js
+  ================================================ -->
+  <div class="toast-container" id="toastContainer"></div>
+
+
+  <!-- ================================================
+       MAIN CONTENT
+  ================================================ -->
+  <div class="wrapper">
+
+    <!-- ── HEADER ── -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="brand-icon">🎓</div>
+        <div class="brand-text">
+          <h1>Quản Lý <span>Sinh Viên</span></h1>
+          <p>Student Management System</p>
+        </div>
+      </div>
+
+      <button class="btn-add" onclick="openAddModal()">
+        <!-- Plus icon (inline SVG, không cần thư viện icon) -->
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="12" y1="5"  x2="12" y2="19"/>
+          <line x1="5"  y1="12" x2="19" y2="12"/>
+        </svg>
+        Thêm Sinh Viên
+      </button>
+    </header>
+
+
+    <!-- ── STATS BAR ── -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Tổng Sinh Viên</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Điểm TB Lớp</div>
+        <div class="stat-value" id="statGPA">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sinh Viên Giỏi</div>
+        <div class="stat-value" id="statExcellent">0</div>
+      </div>
+    </div>
+
+
+    <!-- ── TOOLBAR: Search / Filter / Sort ── -->
+    <div class="toolbar">
+      <!-- Search -->
+      <div class="search-wrap">
+        <span class="icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input
+          class="search-input"
+          id="searchInput"
+          type="text"
+          placeholder="Tìm theo mã, tên, email…"
+          oninput="renderTable()"
+        />
+      </div>
+
+      <!-- Filter theo lớp -->
+      <select class="filter-select" id="filterClass" onchange="renderTable()">
+        <option value="">Tất cả lớp</option>
+        <option value="A">Lớp A</option>
+        <option value="B">Lớp B</option>
+        <option value="C">Lớp C</option>
+        <option value="D">Lớp D</option>
+      </select>
+
+      <!-- Sắp xếp -->
+      <select class="filter-select" id="sortBy" onchange="renderTable()">
+        <option value="">Sắp xếp…</option>
+        <option value="name">Tên A→Z</option>
+        <option value="gpa_desc">GPA Cao→Thấp</option>
+        <option value="gpa_asc">GPA Thấp→Cao</option>
+      </select>
+    </div>
+
+
+    <!-- ── STUDENT TABLE ── -->
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table id="studentTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Mã SV</th>
+              <th>Họ và Tên</th>
+              <th>Ngày Sinh</th>
+              <th>Lớp</th>
+              <th>GPA</th>
+              <th>Email</th>
+              <th>Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="studentBody">
+            <!-- Các dòng sinh viên được inject bởi app.js → renderTable() -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Trạng thái rỗng (hiện khi không có kết quả) -->
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Chưa có sinh viên nào</div>
+        <div class="empty-sub">Bấm "Thêm Sinh Viên" để bắt đầu thêm dữ liệu</div>
+      </div>
+    </div>
+
+  </div><!-- /.wrapper -->
+
+
+  <!-- ================================================
+       MODAL: THÊM / CHỈNH SỬA SINH VIÊN
+  ================================================ -->
+  <div class="overlay" id="formOverlay">
+    <div class="modal" id="formModal">
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" id="modalIcon">➕</div>
+          <div>
+            <div class="modal-title" id="modalTitle">Thêm <span>Sinh Viên</span></div>
+            <div class="modal-subtitle" id="modalSubtitle">Điền đầy đủ thông tin bên dưới</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeFormModal()" title="Đóng">✕</button>
+      </div>
+
+      <!-- Modal Body: Form -->
+      <div class="modal-body">
+        <form id="studentForm" novalidate>
+          <div class="form-grid">
+
+            <!-- ─── SECTION: Thông tin cơ bản ─── -->
+            <div class="form-section">📌 Thông Tin Cơ Bản</div>
+
+            <!-- Mã sinh viên -->
+            <div class="field">
+              <label>Mã Sinh Viên <span class="req">*</span></label>
+              <input type="text" id="f-id" placeholder="VD: SV123456" autocomplete="off"/>
+              <span class="field-hint" id="h-id">Bắt đầu bằng "SV" + 6 chữ số</span>
+            </div>
+
+            <!-- Họ và tên -->
+            <div class="field">
+              <label>Họ và Tên <span class="req">*</span></label>
+              <input type="text" id="f-name" placeholder="Nguyễn Văn A" autocomplete="off"/>
+              <span class="field-hint" id="h-name">Chỉ chứa chữ cái và khoảng trắng</span>
+            </div>
+
+            <!-- Ngày sinh -->
+            <div class="field">
+              <label>Ngày Sinh <span class="req">*</span></label>
+              <input type="date" id="f-dob"/>
+              <span class="field-hint" id="h-dob">Phải từ 18 tuổi trở lên</span>
+            </div>
+
+            <!-- Lớp học -->
+            <div class="field">
+              <label>Lớp Học <span class="req">*</span></label>
+              <select id="f-class">
+                <option value="">-- Chọn lớp --</option>
+                <option value="A">Lớp A</option>
+                <option value="B">Lớp B</option>
+                <option value="C">Lớp C</option>
+                <option value="D">Lớp D</option>
+              </select>
+              <span class="field-hint" id="h-class"></span>
+            </div>
+
+            <!-- Điểm trung bình -->
+            <div class="field">
+              <label>Điểm Trung Bình (GPA) <span class="req">*</span></label>
+              <input type="text" id="f-gpa" placeholder="0.00 – 10.00" autocomplete="off"/>
+              <span class="field-hint" id="h-gpa">Nhập số từ 0 đến 10, tối đa 2 chữ số thập phân</span>
+            </div>
+
+            <!-- Email -->
+            <div class="field">
+              <label>Email Sinh Viên <span class="req">*</span></label>
+              <input type="email" id="f-email" placeholder="msv@student.edu.vn" autocomplete="off"/>
+              <span class="field-hint" id="h-email">Phải kết thúc bằng @student.edu.vn</span>
+            </div>
+
+            <!-- ─── SECTION: Bảo mật tài khoản ─── -->
+            <div class="form-section">🔒 Bảo Mật Tài Khoản</div>
+
+            <!-- Mật khẩu -->
+            <div class="field">
+              <label>Mật Khẩu <span class="req">*</span></label>
+              <div class="pw-wrap">
+                <input type="password" id="f-pw" placeholder="Ít nhất 8 ký tự" autocomplete="new-password"/>
+                <button type="button" class="pw-toggle" onclick="togglePw('f-pw', this)">👁</button>
+              </div>
+              <span class="field-hint" id="h-pw">Chứa chữ hoa, chữ thường, số và ký tự đặc biệt</span>
+            </div>
+
+            <!-- Xác nhận mật khẩu -->
+            <div class="field">
+              <label>Xác Nhận Mật Khẩu <span class="req">*</span></label>
+              <div class="pw-wrap">
+                <input type="password" id="f-cpw" placeholder="Nhập lại mật khẩu" autocomplete="new-password"/>
+                <button type="button" class="pw-toggle" onclick="togglePw('f-cpw', this)">👁</button>
+              </div>
+              <span class="field-hint" id="h-cpw">Phải khớp với mật khẩu tài khoản</span>
+            </div>
+
+          </div><!-- /.form-grid -->
+        </form>
+      </div><!-- /.modal-body -->
+
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeFormModal()">Hủy bỏ</button>
+        <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+          <span id="submitLabel">Lưu Sinh Viên</span>
+        </button>
+      </div>
+
+    </div><!-- /.modal -->
+  </div><!-- /#formOverlay -->
+
+
+  <!-- ================================================
+       MODAL: XÁC NHẬN XOÁ
+  ================================================ -->
+  <div class="overlay" id="confirmOverlay">
+    <div class="modal confirm-modal">
+
+      <div class="confirm-body">
+        <span class="confirm-icon">🗑️</span>
+        <div class="confirm-title">Xác nhận xoá?</div>
+        <p class="confirm-sub">
+          Bạn có chắc muốn xoá sinh viên<br>
+          <strong id="confirmName"></strong>?<br>
+          <span style="color:var(--text3);font-size:0.8rem">Hành động này không thể hoàn tác.</span>
+        </p>
+      </div>
+
+      <div class="confirm-footer">
+        <button class="btn-cancel" onclick="closeConfirm()">Hủy</button>
+        <button class="btn-danger" id="confirmDelBtn">Xoá ngay</button>
+      </div>
+
+    </div><!-- /.modal -->
+  </div><!-- /#confirmOverlay -->
+
+
+  <!-- JavaScript (đặt cuối body để DOM đã sẵn sàng) -->
+  <script src="app.js"></script>
+
+</body>
+</html>
