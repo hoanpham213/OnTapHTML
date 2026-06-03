@@ -1,626 +1,678 @@
-/* ============================================================
-   app.js – Quản Lý Sinh Viên
-   Cấu trúc:
-     1. Data Layer  – đọc/ghi LocalStorage
-     2. Render      – vẽ bảng, stats
-     3. Modal Form  – mở/đóng, reset
-     4. Validation  – kiểm tra từng trường
-     5. Submit      – thêm mới / cập nhật
-     6. Delete      – xác nhận & xoá
-     7. Toast       – thông báo nhanh
-     8. Events      – click ngoài, ESC
-     9. Demo Data   – dữ liệu mẫu (chỉ seed 1 lần)
-    10. Init        – khởi động
-============================================================ */
+/* ========================================
+   app.js - Quản Lý Sinh Viên
+   ========================================
+   Mục lục:
+   1. Hằng số & biến toàn cục
+   2. LocalStorage - lưu & đọc dữ liệu
+   3. Hiển thị bảng sinh viên
+   4. Hiển thị thống kê
+   5. Mở / đóng popup thêm-sửa
+   6. Validate (kiểm tra) từng trường
+   7. Xử lý submit form (thêm / sửa)
+   8. Xoá sinh viên
+   9. Tiện ích (toast, toggle password)
+   10. Dữ liệu mẫu & khởi động
+======================================== */
 
-'use strict';
 
-/* ─────────────────────────────────────────
-   1. DATA LAYER – LocalStorage
-───────────────────────────────────────── */
-const STORAGE_KEY = 'sv_students';
+/* ========================================
+   1. HẰNG SỐ & BIẾN TOÀN CỤC
+======================================== */
+
+// Tên key dùng để lưu vào LocalStorage
+const STORAGE_KEY = 'ds_sinh_vien';
+
+// Biến lưu mã SV đang được chỉnh sửa
+// null = đang ở chế độ thêm mới
+let dangSuaId = null;
+
+
+/* ========================================
+   2. LOCALSTORAGE - LƯU & ĐỌC DỮ LIỆU
+======================================== */
 
 /**
  * Đọc danh sách sinh viên từ LocalStorage.
- * @returns {Array} mảng sinh viên
+ * Nếu chưa có dữ liệu thì trả về mảng rỗng [].
  */
-function loadStudents() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch {
-    return [];
+function layDanhSach() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  if (data) {
+    return JSON.parse(data); // Chuyển chuỗi JSON → mảng
   }
+  return [];
 }
 
 /**
- * Ghi danh sách sinh viên vào LocalStorage.
- * @param {Array} arr – mảng sinh viên
+ * Lưu danh sách sinh viên vào LocalStorage.
+ * @param {Array} danhSach - Mảng chứa danh sách sinh viên
  */
-function saveStudents(arr) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+function luuDanhSach(danhSach) {
+  // Chuyển mảng → chuỗi JSON rồi lưu
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(danhSach));
 }
 
-/* ─────────────────────────────────────────
-   2. RENDER – vẽ bảng & stats
-───────────────────────────────────────── */
+
+/* ========================================
+   3. HIỂN THỊ BẢNG SINH VIÊN
+======================================== */
 
 /**
- * Vẽ lại toàn bộ bảng dựa theo search / filter / sort hiện tại.
+ * Vẽ lại toàn bộ bảng sinh viên.
+ * Gọi hàm này mỗi khi dữ liệu thay đổi.
  */
-function renderTable() {
-  const students = loadStudents();
-  const query    = (document.getElementById('searchInput').value || '').toLowerCase();
-  const cls      = document.getElementById('filterClass').value;
-  const sort     = document.getElementById('sortBy').value;
-  const tbody    = document.getElementById('studentBody');
-  const empty    = document.getElementById('emptyState');
-  const scroll   = document.querySelector('.table-scroll');
+function hienThiBang() {
+  let danhSach = layDanhSach();
 
-  // Lọc
-  let list = students.filter(s => {
-    const matchText = s.id.toLowerCase().includes(query)    ||
-                      s.name.toLowerCase().includes(query)  ||
-                      s.email.toLowerCase().includes(query);
-    const matchCls  = cls ? s.cls === cls : true;
-    return matchText && matchCls;
+  // --- Lấy giá trị tìm kiếm & lọc từ toolbar ---
+  const tuKhoa = document.getElementById('inp-search').value.toLowerCase();
+  const lopLoc  = document.getElementById('sel-class').value;
+  const sapXep  = document.getElementById('sel-sort').value;
+
+  // --- Lọc theo từ khóa và lớp ---
+  danhSach = danhSach.filter(function(sv) {
+    // Kiểm tra từ khóa khớp với mã SV, tên, hoặc email
+    const khopTuKhoa = sv.maSV.toLowerCase().includes(tuKhoa)
+                    || sv.hoTen.toLowerCase().includes(tuKhoa)
+                    || sv.email.toLowerCase().includes(tuKhoa);
+    // Kiểm tra lớp (nếu không chọn lớp thì hiện tất cả)
+    const khopLop = lopLoc === '' || sv.lop === lopLoc;
+    return khopTuKhoa && khopLop;
   });
 
-  // Sắp xếp
-  if (sort === 'name')     list.sort((a, b) => a.name.localeCompare(b.name));
-  if (sort === 'gpa_desc') list.sort((a, b) => b.gpa - a.gpa);
-  if (sort === 'gpa_asc')  list.sort((a, b) => a.gpa - b.gpa);
+  // --- Sắp xếp ---
+  if (sapXep === 'ten') {
+    danhSach.sort((a, b) => a.hoTen.localeCompare(b.hoTen));
+  } else if (sapXep === 'diem_cao') {
+    danhSach.sort((a, b) => b.diemTB - a.diemTB);
+  } else if (sapXep === 'diem_thap') {
+    danhSach.sort((a, b) => a.diemTB - b.diemTB);
+  }
 
-  tbody.innerHTML = '';
+  // --- Vẽ bảng ---
+  const tbody = document.getElementById('tbody-sv');
+  tbody.innerHTML = ''; // Xoá nội dung cũ
 
-  if (!list.length) {
-    empty.style.display  = 'block';
-    scroll.style.display = 'none';
+  if (danhSach.length === 0) {
+    // Không có dữ liệu → hiện dòng thông báo
+    tbody.innerHTML = `
+      <tr class="empty-row">
+        <td colspan="8">Chưa có sinh viên nào. Hãy thêm sinh viên mới!</td>
+      </tr>`;
   } else {
-    empty.style.display  = 'none';
-    scroll.style.display = '';
-
-    list.forEach((s, i) => {
+    // Có dữ liệu → vẽ từng dòng
+    danhSach.forEach(function(sv, index) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="color:var(--text3);font-size:0.8rem;font-family:var(--mono)">${String(i + 1).padStart(2, '0')}</td>
-        <td><span class="cell-id">${esc(s.id)}</span></td>
-        <td class="cell-name">${esc(s.name)}</td>
-        <td class="cell-dob">${formatDate(s.dob)}</td>
-        <td><span class="badge-class class-${s.cls}">Lớp ${esc(s.cls)}</span></td>
-        <td>${gpaHtml(s.gpa)}</td>
-        <td class="cell-email">${esc(s.email)}</td>
-        <td class="action-cell">
-          <button class="btn-edit" onclick="openEditModal('${esc(s.id)}')">✏️ Sửa</button>
-          <button class="btn-del"  onclick="openConfirm('${esc(s.id)}')">🗑 Xoá</button>
+        <td>${index + 1}</td>
+        <td><strong>${sv.maSV}</strong></td>
+        <td>${sv.hoTen}</td>
+        <td>${dinhDangNgay(sv.ngaySinh)}</td>
+        <td><span class="badge badge-${sv.lop}">Lớp ${sv.lop}</span></td>
+        <td class="${layClassDiem(sv.diemTB)}">${parseFloat(sv.diemTB).toFixed(2)}</td>
+        <td>${sv.email}</td>
+        <td>
+          <button class="btn-edit"   onclick="moPopupSua('${sv.maSV}')">✏️ Sửa</button>
+          <button class="btn-delete" onclick="moXacNhanXoa('${sv.maSV}')">🗑 Xoá</button>
         </td>`;
       tbody.appendChild(tr);
     });
   }
 
-  updateStats(students);
+  // Cập nhật thống kê sau khi vẽ bảng
+  hienThiThongKe();
 }
 
 /**
- * Tạo HTML cho ô GPA với màu sắc theo mức điểm.
- * @param {number|string} g – điểm GPA
- * @returns {string} HTML string
+ * Trả về tên class CSS dựa theo điểm.
+ * @param {number} diem
+ * @returns {string} tên class CSS
  */
-function gpaHtml(g) {
-  const n = parseFloat(g);
-  let cls = 'gpa-poor';
-  if      (n >= 8.5) cls = 'gpa-excellent';
-  else if (n >= 7.0) cls = 'gpa-good';
-  else if (n >= 5.0) cls = 'gpa-average';
-  return `<span class="gpa-pill ${cls}"><span class="gpa-dot"></span>${n.toFixed(2)}</span>`;
+function layClassDiem(diem) {
+  if (diem >= 8.5) return 'gpa-xuat-sac';
+  if (diem >= 7.0) return 'gpa-gioi';
+  if (diem >= 5.0) return 'gpa-kha';
+  return 'gpa-yeu';
 }
 
 /**
- * Cập nhật các thẻ thống kê (tổng, điểm TB, số giỏi).
- * @param {Array} students – toàn bộ danh sách (không lọc)
+ * Chuyển định dạng ngày từ "YYYY-MM-DD" sang "DD/MM/YYYY".
+ * @param {string} ngay - Chuỗi ngày dạng YYYY-MM-DD
+ * @returns {string}
  */
-function updateStats(students) {
-  document.getElementById('statTotal').textContent = students.length;
+function dinhDangNgay(ngay) {
+  if (!ngay) return '';
+  const parts = ngay.split('-');   // ['2005', '04', '15']
+  return `${parts[2]}/${parts[1]}/${parts[0]}`; // '15/04/2005'
+}
 
-  if (!students.length) {
-    document.getElementById('statGPA').textContent       = '—';
-    document.getElementById('statExcellent').textContent = '0';
+
+/* ========================================
+   4. HIỂN THỊ THỐNG KÊ
+======================================== */
+
+/**
+ * Tính và hiển thị: tổng SV, điểm TB lớp, số SV giỏi (>=8.5).
+ */
+function hienThiThongKe() {
+  const danhSach = layDanhSach(); // Luôn dùng toàn bộ danh sách (không lọc)
+
+  const tongSV = danhSach.length;
+
+  // Tính điểm trung bình
+  let diemTB = 0;
+  if (tongSV > 0) {
+    const tongDiem = danhSach.reduce((tong, sv) => tong + parseFloat(sv.diemTB), 0);
+    diemTB = tongDiem / tongSV;
+  }
+
+  // Đếm sinh viên xuất sắc (GPA >= 8.5)
+  const soGioi = danhSach.filter(sv => parseFloat(sv.diemTB) >= 8.5).length;
+
+  // Ghi lên giao diện
+  document.getElementById('stat-tong').textContent  = tongSV;
+  document.getElementById('stat-diem').textContent  = tongSV > 0 ? diemTB.toFixed(2) : '—';
+  document.getElementById('stat-gioi').textContent  = soGioi;
+}
+
+
+/* ========================================
+   5. MỞ / ĐÓNG POPUP THÊM-SỬA
+======================================== */
+
+/**
+ * Mở popup ở chế độ THÊM MỚI sinh viên.
+ */
+function moPopupThem() {
+  dangSuaId = null; // Không phải đang sửa
+
+  // Đổi tiêu đề popup
+  document.getElementById('modal-title').textContent = '➕ Thêm Sinh Viên';
+  document.getElementById('btn-submit').textContent  = 'Lưu Sinh Viên';
+
+  // Mở khóa trường Mã SV (cho phép nhập khi thêm mới)
+  document.getElementById('f-maSV').removeAttribute('readonly');
+
+  // Reset form về trạng thái ban đầu
+  resetForm();
+
+  // Hiện popup
+  document.getElementById('overlay-form').classList.add('active');
+}
+
+/**
+ * Mở popup ở chế độ SỬA sinh viên.
+ * @param {string} maSV - Mã sinh viên cần sửa
+ */
+function moPopupSua(maSV) {
+  const danhSach = layDanhSach();
+  const sv = danhSach.find(x => x.maSV === maSV); // Tìm sinh viên theo mã
+  if (!sv) return;
+
+  dangSuaId = maSV; // Đánh dấu đang sửa mã này
+
+  // Đổi tiêu đề popup
+  document.getElementById('modal-title').textContent = '✏️ Chỉnh Sửa Sinh Viên';
+  document.getElementById('btn-submit').textContent  = 'Cập Nhật';
+
+  // Khoá trường Mã SV (không cho sửa mã khi đang chỉnh sửa)
+  document.getElementById('f-maSV').setAttribute('readonly', 'readonly');
+
+  // Reset form trước rồi mới điền dữ liệu
+  resetForm();
+
+  // Điền dữ liệu sinh viên vào form
+  document.getElementById('f-maSV').value  = sv.maSV;
+  document.getElementById('f-hoTen').value = sv.hoTen;
+  document.getElementById('f-ngay').value  = sv.ngaySinh;
+  document.getElementById('f-lop').value   = sv.lop;
+  document.getElementById('f-diem').value  = sv.diemTB;
+  document.getElementById('f-email').value = sv.email;
+  // Mật khẩu để trống → giữ mật khẩu cũ
+
+  // Hiện popup
+  document.getElementById('overlay-form').classList.add('active');
+}
+
+/** Đóng popup thêm/sửa */
+function dongPopupForm() {
+  document.getElementById('overlay-form').classList.remove('active');
+}
+
+/** Reset toàn bộ form về trạng thái ban đầu (trống + không lỗi) */
+function resetForm() {
+  // Danh sách ID các trường cần reset
+  const truongs = ['f-maSV', 'f-hoTen', 'f-ngay', 'f-lop', 'f-diem', 'f-email', 'f-matkhau', 'f-xacnhan'];
+
+  truongs.forEach(function(id) {
+    const el = document.getElementById(id);
+    el.value = '';
+    el.classList.remove('error', 'valid'); // Xoá trạng thái lỗi/hợp lệ
+  });
+
+  // Reset tất cả thông báo lỗi về mặc định
+  const hints = ['h-maSV', 'h-hoTen', 'h-ngay', 'h-lop', 'h-diem', 'h-email', 'h-matkhau', 'h-xacnhan'];
+  hints.forEach(function(id) {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    el.className   = 'msg';
+  });
+}
+
+
+/* ========================================
+   6. VALIDATE (KIỂM TRA) TỪNG TRƯỜNG
+======================================== */
+
+/**
+ * Hiển thị trạng thái hợp lệ/lỗi cho một trường.
+ * @param {string} fieldId - ID của input/select
+ * @param {string} hintId  - ID của span thông báo
+ * @param {boolean} hopLe  - true = hợp lệ, false = lỗi
+ * @param {string} thongBao - Nội dung thông báo
+ * @returns {boolean} hopLe
+ */
+function datTrangThai(fieldId, hintId, hopLe, thongBao) {
+  const field = document.getElementById(fieldId);
+  const hint  = document.getElementById(hintId);
+
+  if (hopLe) {
+    field.classList.remove('error');
+    field.classList.add('valid');
+    hint.textContent = '✓ ' + thongBao;
+    hint.className   = 'msg success';
+  } else {
+    field.classList.remove('valid');
+    field.classList.add('error');
+    hint.textContent = '✗ ' + thongBao;
+    hint.className   = 'msg error';
+  }
+
+  return hopLe;
+}
+
+/**
+ * Kiểm tra toàn bộ form.
+ * @returns {boolean} true nếu tất cả trường đều hợp lệ
+ */
+function kiemTraForm() {
+  let hopLe = true; // Giả sử hợp lệ, nếu có lỗi thì đặt thành false
+
+  // --- Mã sinh viên ---
+  const maSV = document.getElementById('f-maSV').value.trim();
+  const regMaSV = /^SV\d{6}$/; // Regex: bắt đầu "SV" + đúng 6 chữ số
+
+  if (maSV === '') {
+    datTrangThai('f-maSV', 'h-maSV', false, 'Mã sinh viên không được để trống');
+    hopLe = false;
+  } else if (!regMaSV.test(maSV)) {
+    datTrangThai('f-maSV', 'h-maSV', false, 'Phải bắt đầu "SV" + 6 chữ số (VD: SV123456)');
+    hopLe = false;
+  } else {
+    // Kiểm tra trùng mã (bỏ qua chính mình khi đang sửa)
+    const danhSach = layDanhSach();
+    const trung = danhSach.find(sv => sv.maSV === maSV && sv.maSV !== dangSuaId);
+    if (trung) {
+      datTrangThai('f-maSV', 'h-maSV', false, 'Mã sinh viên này đã tồn tại');
+      hopLe = false;
+    } else {
+      datTrangThai('f-maSV', 'h-maSV', true, 'Hợp lệ');
+    }
+  }
+
+  // --- Họ và tên ---
+  const hoTen = document.getElementById('f-hoTen').value.trim();
+  // Regex Unicode: chỉ chữ cái (bao gồm tiếng Việt) và khoảng trắng
+  const regHoTen = /^[\p{L}\s]+$/u;
+
+  if (hoTen === '') {
+    datTrangThai('f-hoTen', 'h-hoTen', false, 'Họ và tên không được để trống');
+    hopLe = false;
+  } else if (!regHoTen.test(hoTen)) {
+    datTrangThai('f-hoTen', 'h-hoTen', false, 'Chỉ được chứa chữ cái và khoảng trắng');
+    hopLe = false;
+  } else {
+    datTrangThai('f-hoTen', 'h-hoTen', true, 'Hợp lệ');
+  }
+
+  // --- Ngày sinh ---
+  const ngay = document.getElementById('f-ngay').value;
+
+  if (ngay === '') {
+    datTrangThai('f-ngay', 'h-ngay', false, 'Ngày sinh không được để trống');
+    hopLe = false;
+  } else {
+    const tuoi = tinhTuoi(ngay);
+    if (tuoi < 18) {
+      datTrangThai('f-ngay', 'h-ngay', false, `Tuổi hiện tại ${tuoi} — phải đủ 18 tuổi trở lên`);
+      hopLe = false;
+    } else {
+      datTrangThai('f-ngay', 'h-ngay', true, `Hợp lệ (${tuoi} tuổi)`);
+    }
+  }
+
+  // --- Lớp học ---
+  const lop = document.getElementById('f-lop').value;
+
+  if (lop === '') {
+    datTrangThai('f-lop', 'h-lop', false, 'Vui lòng chọn lớp học');
+    hopLe = false;
+  } else {
+    datTrangThai('f-lop', 'h-lop', true, 'Đã chọn lớp ' + lop);
+  }
+
+  // --- Điểm trung bình ---
+  const diemStr = document.getElementById('f-diem').value.trim();
+  const diemNum = parseFloat(diemStr);
+  // Regex: số nguyên hoặc thập phân, tối đa 2 chữ số sau dấu phẩy
+  const regDiem = /^\d+(\.\d{1,2})?$/;
+
+  if (diemStr === '') {
+    datTrangThai('f-diem', 'h-diem', false, 'Điểm trung bình không được để trống');
+    hopLe = false;
+  } else if (!regDiem.test(diemStr) || isNaN(diemNum) || diemNum < 0 || diemNum > 10) {
+    datTrangThai('f-diem', 'h-diem', false, 'Phải là số từ 0 đến 10 (tối đa 2 chữ số thập phân)');
+    hopLe = false;
+  } else {
+    datTrangThai('f-diem', 'h-diem', true, 'Hợp lệ');
+  }
+
+  // --- Email ---
+  const email = document.getElementById('f-email').value.trim();
+  const regEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Định dạng email cơ bản
+
+  if (email === '') {
+    datTrangThai('f-email', 'h-email', false, 'Email không được để trống');
+    hopLe = false;
+  } else if (!regEmail.test(email)) {
+    datTrangThai('f-email', 'h-email', false, 'Định dạng email không hợp lệ');
+    hopLe = false;
+  } else if (!email.endsWith('@student.edu.vn')) {
+    datTrangThai('f-email', 'h-email', false, 'Email phải kết thúc bằng @student.edu.vn');
+    hopLe = false;
+  } else {
+    datTrangThai('f-email', 'h-email', true, 'Hợp lệ');
+  }
+
+  // --- Mật khẩu ---
+  const matKhau = document.getElementById('f-matkhau').value;
+  const isEdit  = dangSuaId !== null; // Đang ở chế độ sửa?
+
+  if (isEdit && matKhau === '') {
+    // Khi sửa mà để trống → cho phép (giữ mật khẩu cũ)
+    document.getElementById('h-matkhau').textContent = 'Để trống = giữ mật khẩu cũ';
+    document.getElementById('h-matkhau').className   = 'msg';
+    document.getElementById('f-matkhau').classList.remove('error', 'valid');
+
+    document.getElementById('h-xacnhan').textContent = '';
+    document.getElementById('f-xacnhan').classList.remove('error', 'valid');
+
+  } else {
+    // Kiểm tra mật khẩu
+    if (matKhau === '') {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Mật khẩu không được để trống');
+      hopLe = false;
+    } else if (matKhau.length < 8) {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Mật khẩu phải có ít nhất 8 ký tự');
+      hopLe = false;
+    } else if (!/[A-Z]/.test(matKhau)) {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Phải có ít nhất 1 chữ hoa (A-Z)');
+      hopLe = false;
+    } else if (!/[a-z]/.test(matKhau)) {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Phải có ít nhất 1 chữ thường (a-z)');
+      hopLe = false;
+    } else if (!/[0-9]/.test(matKhau)) {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Phải có ít nhất 1 chữ số (0-9)');
+      hopLe = false;
+    } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(matKhau)) {
+      datTrangThai('f-matkhau', 'h-matkhau', false, 'Phải có ít nhất 1 ký tự đặc biệt (!@#$...)');
+      hopLe = false;
+    } else {
+      datTrangThai('f-matkhau', 'h-matkhau', true, 'Mật khẩu mạnh');
+    }
+
+    // Kiểm tra xác nhận mật khẩu
+    const xacNhan = document.getElementById('f-xacnhan').value;
+    if (xacNhan === '') {
+      datTrangThai('f-xacnhan', 'h-xacnhan', false, 'Xác nhận mật khẩu không được để trống');
+      hopLe = false;
+    } else if (xacNhan !== matKhau) {
+      datTrangThai('f-xacnhan', 'h-xacnhan', false, 'Mật khẩu xác nhận không khớp');
+      hopLe = false;
+    } else {
+      datTrangThai('f-xacnhan', 'h-xacnhan', true, 'Khớp');
+    }
+  }
+
+  return hopLe; // Trả về kết quả tổng hợp
+}
+
+/**
+ * Tính tuổi từ ngày sinh.
+ * @param {string} ngaySinh - Chuỗi dạng "YYYY-MM-DD"
+ * @returns {number} tuổi
+ */
+function tinhTuoi(ngaySinh) {
+  const homNay = new Date();
+  const ngayS  = new Date(ngaySinh);
+  let tuoi = homNay.getFullYear() - ngayS.getFullYear();
+  // Kiểm tra xem đã qua sinh nhật năm nay chưa
+  const chuaQuaSinhNhat =
+    homNay.getMonth() < ngayS.getMonth() ||
+    (homNay.getMonth() === ngayS.getMonth() && homNay.getDate() < ngayS.getDate());
+  if (chuaQuaSinhNhat) tuoi--;
+  return tuoi;
+}
+
+
+/* ========================================
+   7. XỬ LÝ SUBMIT FORM (THÊM / SỬA)
+======================================== */
+
+/**
+ * Gọi khi nhấn nút "Lưu" hoặc "Cập nhật".
+ * Kiểm tra form → nếu hợp lệ thì lưu.
+ */
+function submitForm() {
+  // Bước 1: Kiểm tra form, dừng lại nếu có lỗi
+  if (!kiemTraForm()) {
+    hienToast('error', 'Vui lòng kiểm tra lại thông tin!');
     return;
   }
 
-  const avg = students.reduce((sum, s) => sum + parseFloat(s.gpa), 0) / students.length;
-  document.getElementById('statGPA').textContent       = avg.toFixed(2);
-  document.getElementById('statExcellent').textContent = students.filter(s => parseFloat(s.gpa) >= 8.5).length;
+  // Bước 2: Lấy giá trị từ form
+  const maSV    = document.getElementById('f-maSV').value.trim();
+  const hoTen   = document.getElementById('f-hoTen').value.trim();
+  const ngay    = document.getElementById('f-ngay').value;
+  const lop     = document.getElementById('f-lop').value;
+  const diemTB  = parseFloat(document.getElementById('f-diem').value).toFixed(2);
+  const email   = document.getElementById('f-email').value.trim();
+  const matKhau = document.getElementById('f-matkhau').value;
+
+  const danhSach = layDanhSach();
+
+  if (dangSuaId === null) {
+    // ---- CHẾ ĐỘ THÊM MỚI ----
+    const svMoi = {
+      maSV    : maSV,
+      hoTen   : hoTen,
+      ngaySinh: ngay,
+      lop     : lop,
+      diemTB  : diemTB,
+      email   : email,
+      matKhau : maHoaMK(matKhau),  // Không lưu mật khẩu dạng plain text
+    };
+    danhSach.push(svMoi);       // Thêm vào cuối mảng
+    luuDanhSach(danhSach);
+    dongPopupForm();
+    hienThiBang();
+    hienToast('success', `Đã thêm sinh viên ${hoTen} thành công!`);
+
+  } else {
+    // ---- CHẾ ĐỘ SỬA ----
+    const viTri = danhSach.findIndex(sv => sv.maSV === dangSuaId);
+    if (viTri === -1) return;
+
+    danhSach[viTri] = {
+      maSV    : maSV,
+      hoTen   : hoTen,
+      ngaySinh: ngay,
+      lop     : lop,
+      diemTB  : diemTB,
+      email   : email,
+      // Nếu nhập mật khẩu mới thì cập nhật, ngược lại giữ cũ
+      matKhau : matKhau ? maHoaMK(matKhau) : danhSach[viTri].matKhau,
+    };
+    luuDanhSach(danhSach);
+    dongPopupForm();
+    hienThiBang();
+    hienToast('success', `Đã cập nhật sinh viên ${hoTen}!`);
+  }
 }
 
 /**
- * Format ngày từ "YYYY-MM-DD" thành "DD/MM/YYYY".
- * @param {string} d
+ * Mã hoá mật khẩu đơn giản (base64).
+ * ⚠️ Chỉ dùng cho mục đích học tập!
+ *    Thực tế phải dùng bcrypt ở phía server.
+ * @param {string} mk - Mật khẩu gốc
  * @returns {string}
  */
-function formatDate(d) {
-  if (!d) return '—';
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
+function maHoaMK(mk) {
+  return btoa(unescape(encodeURIComponent(mk)));
+}
+
+
+/* ========================================
+   8. XOÁ SINH VIÊN
+======================================== */
+
+/** Mã SV đang chờ xác nhận xoá */
+let dangXoaMa = null;
+
+/**
+ * Mở popup xác nhận xoá.
+ * @param {string} maSV - Mã sinh viên cần xoá
+ */
+function moXacNhanXoa(maSV) {
+  const danhSach = layDanhSach();
+  const sv = danhSach.find(x => x.maSV === maSV);
+  if (!sv) return;
+
+  dangXoaMa = maSV;
+
+  // Hiện tên sinh viên lên popup
+  document.getElementById('ten-xoa').textContent = `${sv.hoTen} (${sv.maSV})`;
+
+  // Hiện popup xác nhận
+  document.getElementById('overlay-xoa').classList.add('active');
+}
+
+/** Đóng popup xác nhận xoá */
+function dongXacNhanXoa() {
+  dangXoaMa = null;
+  document.getElementById('overlay-xoa').classList.remove('active');
 }
 
 /**
- * Escape HTML để tránh XSS khi nhúng chuỗi vào innerHTML.
- * @param {*} s
- * @returns {string}
+ * Thực hiện xoá sinh viên sau khi người dùng xác nhận.
  */
-function esc(s) {
-  return String(s)
-    .replace(/&/g,  '&amp;')
-    .replace(/</g,  '&lt;')
-    .replace(/>/g,  '&gt;')
-    .replace(/"/g,  '&quot;')
-    .replace(/'/g,  '&#39;');
+function xoaSinhVien() {
+  if (!dangXoaMa) return;
+
+  let danhSach = layDanhSach();
+  const sv     = danhSach.find(x => x.maSV === dangXoaMa);
+
+  // Lọc bỏ sinh viên có mã bằng dangXoaMa
+  danhSach = danhSach.filter(x => x.maSV !== dangXoaMa);
+
+  luuDanhSach(danhSach);
+  dongXacNhanXoa();
+  hienThiBang();
+  hienToast('success', `Đã xoá sinh viên ${sv ? sv.hoTen : ''}`);
 }
 
-/* ─────────────────────────────────────────
-   3. MODAL FORM – mở / đóng / reset
-───────────────────────────────────────── */
 
-/** ID sinh viên đang được chỉnh sửa; null = chế độ thêm mới */
-let editingId = null;
+/* ========================================
+   9. TIỆN ÍCH
+======================================== */
 
-/** Mở modal ở chế độ Thêm mới */
-function openAddModal() {
-  editingId = null;
-  document.getElementById('modalIcon').textContent    = '➕';
-  document.getElementById('modalTitle').innerHTML     = 'Thêm <span>Sinh Viên</span>';
-  document.getElementById('modalSubtitle').textContent = 'Điền đầy đủ thông tin bên dưới';
-  document.getElementById('submitLabel').textContent  = 'Lưu Sinh Viên';
-  resetForm();
-  document.getElementById('f-id').removeAttribute('readonly');
-  openOverlay('formOverlay');
+/**
+ * Hiển thị thông báo toast ở góc màn hình.
+ * @param {'success'|'error'} loai - Loại thông báo
+ * @param {string} noiDung - Nội dung thông báo
+ */
+function hienToast(loai, noiDung) {
+  const container = document.getElementById('toast-container');
+
+  const toast = document.createElement('div');
+  toast.className   = `toast ${loai}`;
+  toast.textContent = (loai === 'success' ? '✅ ' : '❌ ') + noiDung;
+
+  container.appendChild(toast);
+
+  // Tự động ẩn sau 3 giây
+  setTimeout(function() {
+    toast.classList.add('hide');
+    // Xoá khỏi DOM sau khi animation kết thúc
+    toast.addEventListener('animationend', function() {
+      toast.remove();
+    });
+  }, 3000);
 }
 
 /**
- * Mở modal ở chế độ Chỉnh sửa và điền sẵn dữ liệu.
- * @param {string} id – Mã sinh viên
+ * Bật/tắt hiện mật khẩu.
+ * @param {string} fieldId - ID của input password
+ * @param {HTMLElement} btn - Nút bấm
  */
-function openEditModal(id) {
-  const students = loadStudents();
-  const s = students.find(x => x.id === id);
-  if (!s) return;
-
-  editingId = id;
-  document.getElementById('modalIcon').textContent    = '✏️';
-  document.getElementById('modalTitle').innerHTML     = 'Chỉnh Sửa <span>Sinh Viên</span>';
-  document.getElementById('modalSubtitle').textContent = `Đang chỉnh sửa: ${s.id}`;
-  document.getElementById('submitLabel').textContent  = 'Cập Nhật';
-
-  resetForm();
-
-  document.getElementById('f-id').value    = s.id;
-  document.getElementById('f-id').setAttribute('readonly', 'readonly'); // Không cho đổi mã SV khi sửa
-  document.getElementById('f-name').value  = s.name;
-  document.getElementById('f-dob').value   = s.dob;
-  document.getElementById('f-class').value = s.cls;
-  document.getElementById('f-gpa').value   = s.gpa;
-  document.getElementById('f-email').value = s.email;
-  document.getElementById('f-pw').value    = '';  // Bỏ trống = giữ mật khẩu cũ
-  document.getElementById('f-cpw').value   = '';
-
-  openOverlay('formOverlay');
-}
-
-/** Đóng modal form */
-function closeFormModal() { closeOverlay('formOverlay'); }
-
-/**
- * Hiển thị overlay (thêm class active).
- * @param {string} id – ID của element overlay
- */
-function openOverlay(id) {
-  document.getElementById(id).classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-/**
- * Ẩn overlay.
- * @param {string} id – ID của element overlay
- */
-function closeOverlay(id) {
-  document.getElementById(id).classList.remove('active');
-  document.body.style.overflow = '';
-}
-
-/** Reset toàn bộ form về trạng thái ban đầu */
-function resetForm() {
-  const fieldIds = ['f-id', 'f-name', 'f-dob', 'f-class', 'f-gpa', 'f-email', 'f-pw', 'f-cpw'];
-  fieldIds.forEach(fid => {
-    const el = document.getElementById(fid);
-    el.value = '';
-    el.classList.remove('error', 'ok');
-  });
-
-  const hintIds = ['h-id', 'h-name', 'h-dob', 'h-class', 'h-gpa', 'h-email', 'h-pw', 'h-cpw'];
-  hintIds.forEach(hid => {
-    const el = document.getElementById(hid);
-    el.className  = 'field-hint';
-    el.textContent = getDefaultHint(hid);
-  });
-}
-
-/**
- * Trả về text gợi ý mặc định cho mỗi trường.
- * @param {string} hintId
- * @returns {string}
- */
-function getDefaultHint(hintId) {
-  const map = {
-    'h-id':    'Bắt đầu bằng "SV" + 6 chữ số',
-    'h-name':  'Chỉ chứa chữ cái và khoảng trắng',
-    'h-dob':   'Phải từ 18 tuổi trở lên',
-    'h-class': '',
-    'h-gpa':   'Nhập số từ 0 đến 10, tối đa 2 chữ số thập phân',
-    'h-email': 'Phải kết thúc bằng @student.edu.vn',
-    'h-pw':    'Chứa chữ hoa, chữ thường, số và ký tự đặc biệt',
-    'h-cpw':   'Phải khớp với mật khẩu tài khoản',
-  };
-  return map[hintId] || '';
-}
-
-/**
- * Bật/tắt hiển thị mật khẩu.
- * @param {string} fieldId – ID của input password
- * @param {HTMLElement} btn – nút toggle
- */
-function togglePw(fieldId, btn) {
-  const inp = document.getElementById(fieldId);
-  if (inp.type === 'password') {
-    inp.type        = 'text';
+function toggleMatKhau(fieldId, btn) {
+  const input = document.getElementById(fieldId);
+  if (input.type === 'password') {
+    input.type      = 'text';
     btn.textContent = '🙈';
   } else {
-    inp.type        = 'password';
+    input.type      = 'password';
     btn.textContent = '👁';
   }
 }
 
-/* ─────────────────────────────────────────
-   4. VALIDATION
-───────────────────────────────────────── */
+
+/* ========================================
+   10. DỮ LIỆU MẪU & KHỞI ĐỘNG
+======================================== */
 
 /**
- * Cập nhật trạng thái (ok/error) và hint text cho một trường.
- * @param {string}  fieldId – ID của input/select
- * @param {string}  hintId  – ID của span gợi ý
- * @param {boolean} ok      – hợp lệ hay không
- * @param {string}  msg     – thông báo hiển thị
- * @returns {boolean} ok
+ * Thêm dữ liệu mẫu vào LocalStorage nếu chưa có dữ liệu.
+ * Giúp sinh viên chạy lên là thấy kết quả ngay.
  */
-function setFieldState(fieldId, hintId, ok, msg) {
-  const field = document.getElementById(fieldId);
-  const hint  = document.getElementById(hintId);
-  field.classList.toggle('error', !ok);
-  field.classList.toggle('ok',     ok);
-  hint.textContent = msg;
-  hint.className   = 'field-hint ' + (ok ? 'success' : 'error');
-  return ok;
-}
+function themDuLieuMau() {
+  if (layDanhSach().length > 0) return; // Đã có dữ liệu thì bỏ qua
 
-/**
- * Tính tuổi từ ngày sinh (chuỗi YYYY-MM-DD).
- * @param {string} dob
- * @returns {number}
- */
-function getAge(dob) {
-  const today = new Date();
-  const birth = new Date(dob);
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
-}
-
-/**
- * Validate toàn bộ form.
- * @returns {boolean} true nếu tất cả hợp lệ
- */
-function validate() {
-  let valid = true;
-
-  /* --- Mã sinh viên --- */
-  const id    = document.getElementById('f-id').value.trim();
-  const idReg = /^SV\d{6}$/;
-  if (!id) {
-    setFieldState('f-id', 'h-id', false, 'Mã sinh viên không được để trống');
-    valid = false;
-  } else if (!idReg.test(id)) {
-    setFieldState('f-id', 'h-id', false, 'Phải bắt đầu "SV" + đúng 6 chữ số (VD: SV123456)');
-    valid = false;
-  } else {
-    // Kiểm tra trùng mã (bỏ qua chính mình khi đang sửa)
-    const dup = loadStudents().find(s => s.id === id && s.id !== editingId);
-    if (dup) {
-      setFieldState('f-id', 'h-id', false, 'Mã sinh viên đã tồn tại');
-      valid = false;
-    } else {
-      setFieldState('f-id', 'h-id', true, '✓ Hợp lệ');
-    }
-  }
-
-  /* --- Họ và tên --- */
-  const name   = document.getElementById('f-name').value.trim();
-  const nameRe = /^[\p{L}\s]+$/u; // Unicode: chữ cái + khoảng trắng (hỗ trợ tiếng Việt)
-  if (!name) {
-    setFieldState('f-name', 'h-name', false, 'Họ tên không được để trống');
-    valid = false;
-  } else if (!nameRe.test(name)) {
-    setFieldState('f-name', 'h-name', false, 'Chỉ chứa chữ cái và khoảng trắng');
-    valid = false;
-  } else {
-    setFieldState('f-name', 'h-name', true, '✓ Hợp lệ');
-  }
-
-  /* --- Ngày sinh --- */
-  const dob = document.getElementById('f-dob').value;
-  if (!dob) {
-    setFieldState('f-dob', 'h-dob', false, 'Ngày sinh không được để trống');
-    valid = false;
-  } else {
-    const age = getAge(dob);
-    if (age < 18) {
-      setFieldState('f-dob', 'h-dob', false, `Tuổi hiện tại: ${age} — phải từ 18 tuổi trở lên`);
-      valid = false;
-    } else {
-      setFieldState('f-dob', 'h-dob', true, `✓ ${age} tuổi`);
-    }
-  }
-
-  /* --- Lớp học --- */
-  const cls = document.getElementById('f-class').value;
-  if (!cls) {
-    setFieldState('f-class', 'h-class', false, 'Vui lòng chọn lớp học');
-    valid = false;
-  } else {
-    setFieldState('f-class', 'h-class', true, '✓ Đã chọn lớp ' + cls);
-  }
-
-  /* --- Điểm trung bình (GPA) --- */
-  const gpaVal = document.getElementById('f-gpa').value.trim();
-  const gpaNum = parseFloat(gpaVal);
-  const gpaRe  = /^\d+(\.\d{1,2})?$/; // số nguyên hoặc tối đa 2 chữ số thập phân
-  if (!gpaVal) {
-    setFieldState('f-gpa', 'h-gpa', false, 'GPA không được để trống');
-    valid = false;
-  } else if (!gpaRe.test(gpaVal) || isNaN(gpaNum) || gpaNum < 0 || gpaNum > 10) {
-    setFieldState('f-gpa', 'h-gpa', false, 'Phải là số từ 0–10, tối đa 2 chữ số thập phân');
-    valid = false;
-  } else {
-    setFieldState('f-gpa', 'h-gpa', true, '✓ GPA hợp lệ');
-  }
-
-  /* --- Email --- */
-  const email   = document.getElementById('f-email').value.trim();
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    setFieldState('f-email', 'h-email', false, 'Email không được để trống');
-    valid = false;
-  } else if (!emailRe.test(email)) {
-    setFieldState('f-email', 'h-email', false, 'Định dạng email không hợp lệ');
-    valid = false;
-  } else if (!email.endsWith('@student.edu.vn')) {
-    setFieldState('f-email', 'h-email', false, 'Email phải kết thúc @student.edu.vn');
-    valid = false;
-  } else {
-    setFieldState('f-email', 'h-email', true, '✓ Email hợp lệ');
-  }
-
-  /* --- Mật khẩu & Xác nhận --- */
-  const pw    = document.getElementById('f-pw').value;
-  const cpw   = document.getElementById('f-cpw').value;
-  const pwRe  = /(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~])/;
-
-  // Khi sửa: cho phép để trống password → giữ mật khẩu cũ
-  if (!pw && editingId) {
-    document.getElementById('f-pw').classList.remove('error', 'ok');
-    document.getElementById('h-pw').className   = 'field-hint';
-    document.getElementById('h-pw').textContent = 'Để trống để giữ mật khẩu cũ';
-    document.getElementById('f-cpw').classList.remove('error', 'ok');
-    document.getElementById('h-cpw').className   = 'field-hint';
-    document.getElementById('h-cpw').textContent = '';
-  } else {
-    if (!pw) {
-      setFieldState('f-pw', 'h-pw', false, 'Mật khẩu không được để trống');
-      valid = false;
-    } else if (pw.length < 8) {
-      setFieldState('f-pw', 'h-pw', false, 'Tối thiểu 8 ký tự');
-      valid = false;
-    } else if (!/(?=.*[A-Z])/.test(pw)) {
-      setFieldState('f-pw', 'h-pw', false, 'Phải có ít nhất 1 chữ hoa');
-      valid = false;
-    } else if (!/(?=.*[a-z])/.test(pw)) {
-      setFieldState('f-pw', 'h-pw', false, 'Phải có ít nhất 1 chữ thường');
-      valid = false;
-    } else if (!/(?=.*\d)/.test(pw)) {
-      setFieldState('f-pw', 'h-pw', false, 'Phải có ít nhất 1 chữ số');
-      valid = false;
-    } else if (!pwRe.test(pw)) {
-      setFieldState('f-pw', 'h-pw', false, 'Phải có ít nhất 1 ký tự đặc biệt');
-      valid = false;
-    } else {
-      setFieldState('f-pw', 'h-pw', true, '✓ Mật khẩu mạnh');
-    }
-
-    if (!cpw) {
-      setFieldState('f-cpw', 'h-cpw', false, 'Xác nhận mật khẩu không được để trống');
-      valid = false;
-    } else if (cpw !== pw) {
-      setFieldState('f-cpw', 'h-cpw', false, 'Mật khẩu không khớp');
-      valid = false;
-    } else {
-      setFieldState('f-cpw', 'h-cpw', true, '✓ Mật khẩu khớp');
-    }
-  }
-
-  return valid;
-}
-
-/* ─────────────────────────────────────────
-   5. SUBMIT – thêm mới / cập nhật
-───────────────────────────────────────── */
-
-/** Xử lý khi bấm nút Lưu / Cập nhật */
-function submitForm() {
-  if (!validate()) {
-    showToast('error', '❌ Vui lòng kiểm tra lại thông tin');
-    return;
-  }
-
-  const students = loadStudents();
-  const id    = document.getElementById('f-id').value.trim();
-  const name  = document.getElementById('f-name').value.trim();
-  const dob   = document.getElementById('f-dob').value;
-  const cls   = document.getElementById('f-class').value;
-  const gpa   = parseFloat(document.getElementById('f-gpa').value).toFixed(2);
-  const email = document.getElementById('f-email').value.trim();
-  const pw    = document.getElementById('f-pw').value;
-
-  if (editingId) {
-    /* --- Cập nhật sinh viên --- */
-    const idx = students.findIndex(s => s.id === editingId);
-    if (idx === -1) return;
-    students[idx] = {
-      id,
-      name,
-      dob,
-      cls,
-      gpa,
-      email,
-      // Nếu nhập pw mới → hash mới; nếu để trống → giữ hash cũ
-      password: pw ? hashPw(pw) : students[idx].password,
-    };
-    saveStudents(students);
-    closeFormModal();
-    renderTable();
-    showToast('success', '✅ Cập nhật sinh viên thành công!');
-
-  } else {
-    /* --- Thêm sinh viên mới --- */
-    students.push({ id, name, dob, cls, gpa, email, password: hashPw(pw) });
-    saveStudents(students);
-    closeFormModal();
-    renderTable();
-    // Highlight dòng vừa thêm
-    setTimeout(() => {
-      const rows = document.querySelectorAll('#studentBody tr');
-      if (rows.length) rows[rows.length - 1].classList.add('row-new');
-    }, 50);
-    showToast('success', '🎉 Thêm sinh viên thành công!');
-  }
-}
-
-/**
- * Mã hóa mật khẩu (base64 placeholder).
- * ⚠️  Trong production thực tế, hãy dùng bcrypt hoặc Argon2 ở phía server.
- * @param {string} pw
- * @returns {string}
- */
-function hashPw(pw) {
-  return btoa(unescape(encodeURIComponent(pw)));
-}
-
-/* ─────────────────────────────────────────
-   6. DELETE – xác nhận & xoá
-───────────────────────────────────────── */
-
-/** Mã sinh viên đang chờ xác nhận xoá */
-let pendingDeleteId = null;
-
-/**
- * Mở hộp xác nhận xoá.
- * @param {string} id – Mã sinh viên cần xoá
- */
-function openConfirm(id) {
-  const students = loadStudents();
-  const s = students.find(x => x.id === id);
-  if (!s) return;
-
-  pendingDeleteId = id;
-  document.getElementById('confirmName').textContent  = `${s.name} (${s.id})`;
-  document.getElementById('confirmDelBtn').onclick    = doDelete;
-  openOverlay('confirmOverlay');
-}
-
-/** Đóng hộp xác nhận xoá */
-function closeConfirm() {
-  pendingDeleteId = null;
-  closeOverlay('confirmOverlay');
-}
-
-/** Thực hiện xoá sinh viên */
-function doDelete() {
-  if (!pendingDeleteId) return;
-  let students    = loadStudents();
-  const s         = students.find(x => x.id === pendingDeleteId);
-  students        = students.filter(x => x.id !== pendingDeleteId);
-  saveStudents(students);
-  closeConfirm();
-  renderTable();
-  showToast('success', `🗑️ Đã xoá ${s ? s.name : 'sinh viên'}`);
-}
-
-/* ─────────────────────────────────────────
-   7. TOAST – thông báo nhanh
-───────────────────────────────────────── */
-
-/**
- * Hiển thị toast notification.
- * @param {'success'|'error'} type
- * @param {string} msg
- */
-function showToast(type, msg) {
-  const container = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = `toast toast-${type}`;
-  t.innerHTML = `<span class="toast-icon">${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
-  container.appendChild(t);
-
-  setTimeout(() => {
-    t.classList.add('removing');
-    t.addEventListener('animationend', () => t.remove());
-  }, 3200);
-}
-
-/* ─────────────────────────────────────────
-   8. EVENTS – click ngoài overlay & ESC
-───────────────────────────────────────── */
-
-// Bấm ra ngoài modal → đóng
-document.getElementById('formOverlay').addEventListener('click', function (e) {
-  if (e.target === this) closeFormModal();
-});
-document.getElementById('confirmOverlay').addEventListener('click', function (e) {
-  if (e.target === this) closeConfirm();
-});
-
-// Nhấn ESC → đóng modal đang mở
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (document.getElementById('formOverlay').classList.contains('active'))    closeFormModal();
-  if (document.getElementById('confirmOverlay').classList.contains('active')) closeConfirm();
-});
-
-/* ─────────────────────────────────────────
-   9. DEMO DATA – seed 1 lần nếu chưa có dữ liệu
-───────────────────────────────────────── */
-(function seedDemoData() {
-  if (loadStudents().length > 0) return; // đã có dữ liệu → bỏ qua
-
-  const demo = [
-    { id: 'SV100001', name: 'Nguyễn Văn An',   dob: '2003-04-15', cls: 'A', gpa: '9.20', email: 'an.nguyen@student.edu.vn',  password: btoa('Demo@1234') },
-    { id: 'SV100002', name: 'Trần Thị Bình',   dob: '2002-08-22', cls: 'B', gpa: '7.85', email: 'binh.tran@student.edu.vn', password: btoa('Demo@1234') },
-    { id: 'SV100003', name: 'Lê Minh Cường',   dob: '2001-12-03', cls: 'A', gpa: '6.40', email: 'cuong.le@student.edu.vn',  password: btoa('Demo@1234') },
-    { id: 'SV100004', name: 'Phạm Thị Dung',   dob: '2003-03-30', cls: 'C', gpa: '8.75', email: 'dung.pham@student.edu.vn', password: btoa('Demo@1234') },
-    { id: 'SV100005', name: 'Hoàng Quốc Đạt',  dob: '2002-07-11', cls: 'D', gpa: '4.50', email: 'dat.hoang@student.edu.vn', password: btoa('Demo@1234') },
+  const mau = [
+    { maSV: 'SV100001', hoTen: 'Nguyễn Văn An',   ngaySinh: '2003-04-15', lop: 'A', diemTB: '9.20', email: 'an.nguyen@student.edu.vn',  matKhau: btoa('Demo@1234') },
+    { maSV: 'SV100002', hoTen: 'Trần Thị Bình',   ngaySinh: '2002-08-22', lop: 'B', diemTB: '7.85', email: 'binh.tran@student.edu.vn',  matKhau: btoa('Demo@1234') },
+    { maSV: 'SV100003', hoTen: 'Lê Minh Cường',   ngaySinh: '2001-12-03', lop: 'A', diemTB: '6.40', email: 'cuong.le@student.edu.vn',   matKhau: btoa('Demo@1234') },
+    { maSV: 'SV100004', hoTen: 'Phạm Thị Dung',   ngaySinh: '2003-03-30', lop: 'C', diemTB: '8.75', email: 'dung.pham@student.edu.vn',  matKhau: btoa('Demo@1234') },
+    { maSV: 'SV100005', hoTen: 'Hoàng Quốc Đạt',  ngaySinh: '2002-07-11', lop: 'D', diemTB: '4.50', email: 'dat.hoang@student.edu.vn',  matKhau: btoa('Demo@1234') },
   ];
-  saveStudents(demo);
-})();
+  luuDanhSach(mau);
+}
 
-/* ─────────────────────────────────────────
-   10. INIT – khởi động khi trang load xong
-───────────────────────────────────────── */
-renderTable();
+// ---- CHẠY KHI TRANG TẢI XONG ----
+themDuLieuMau();   // Thêm dữ liệu mẫu (nếu cần)
+hienThiBang();     // Vẽ bảng sinh viên
+
+// Đóng popup khi bấm ra ngoài vùng modal
+document.getElementById('overlay-form').addEventListener('click', function(e) {
+  if (e.target === this) dongPopupForm();
+});
+document.getElementById('overlay-xoa').addEventListener('click', function(e) {
+  if (e.target === this) dongXacNhanXoa();
+});
+
+// Nhấn phím ESC để đóng popup
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  dongPopupForm();
+  dongXacNhanXoa();
+});
