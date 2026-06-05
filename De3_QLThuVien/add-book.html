@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Thêm Sách – Thư Viện</title>
+
+  <!--
+    Liên kết CSS dùng chung cho cả 2 trang.
+    Ba file phải ở cùng thư mục:
+      add-book.html  ← trang này
+      library.html   ← trang quản lý
+      style.css      ← giao diện
+      data.js        ← dữ liệu & hàm LocalStorage
+      add-book.js    ← logic trang này
+      library.js     ← logic trang quản lý
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Toast container – nơi hiện thông báo nhanh -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+
+    <!-- ══ HEADER ══ -->
+    <div class="header">
+      <div>
+        <h1>📚 Thư Viện Sách</h1>
+        <p>Library Management System</p>
+      </div>
+      <!-- Liên kết sang trang quản lý -->
+      <a href="library.html">📋 Xem Danh Sách Sách</a>
+    </div>
+
+
+    <!-- ══ FORM THÊM SÁCH ══ -->
+    <div class="card">
+      <div class="card-header">
+        ➕ Thêm Sách Mới
+      </div>
+
+      <div class="card-body">
+
+        <!--
+          Alert box – hiện thông báo lỗi tổng (nếu cần).
+          Ban đầu ẩn, JS sẽ thêm class "show" khi cần hiện.
+        -->
+        <div class="alert alert-danger" id="alertBox"></div>
+
+        <!--
+          novalidate: Tắt validate mặc định của trình duyệt.
+          Chúng ta sẽ tự validate bằng JavaScript trong add-book.js.
+        -->
+        <form id="bookForm" novalidate>
+          <div class="form-grid">
+
+            <!-- ─── SECTION: Thông tin sách ─── -->
+            <div class="form-section">📖 Thông Tin Sách</div>
+
+            <!-- Mã sách -->
+            <div class="field">
+              <label for="bookId">
+                Mã Sách <span class="req">*</span>
+              </label>
+              <input
+                type="text"
+                id="bookId"
+                placeholder="VD: BK12345"
+                autocomplete="off"
+              />
+              <!-- Dòng thông báo lỗi / hợp lệ (JS sẽ cập nhật) -->
+              <span class="msg" id="msg-bookId"></span>
+            </div>
+
+            <!-- Tên sách -->
+            <div class="field">
+              <label for="title">
+                Tên Sách <span class="req">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                placeholder="Nhập tên sách..."
+                autocomplete="off"
+              />
+              <span class="msg" id="msg-title"></span>
+            </div>
+
+            <!-- Tác giả -->
+            <div class="field">
+              <label for="author">
+                Tác Giả <span class="req">*</span>
+              </label>
+              <input
+                type="text"
+                id="author"
+                placeholder="VD: Nguyen Van A"
+                autocomplete="off"
+              />
+              <span class="msg" id="msg-author"></span>
+            </div>
+
+            <!-- Thể loại -->
+            <div class="field">
+              <label for="genre">
+                Thể Loại <span class="req">*</span>
+              </label>
+              <select id="genre">
+                <option value="">-- Chọn thể loại --</option>
+                <option value="Khoa học">Khoa học</option>
+                <option value="Văn học">Văn học</option>
+                <option value="Lịch sử">Lịch sử</option>
+                <option value="Công nghệ">Công nghệ</option>
+                <option value="Khác">Khác</option>
+              </select>
+              <span class="msg" id="msg-genre"></span>
+            </div>
+
+            <!-- Năm xuất bản -->
+            <div class="field">
+              <label for="year">
+                Năm Xuất Bản <span class="req">*</span>
+              </label>
+              <input
+                type="number"
+                id="year"
+                placeholder="VD: 2020"
+                min="1900"
+              />
+              <span class="msg" id="msg-year"></span>
+            </div>
+
+            <!-- Số lượng -->
+            <div class="field">
+              <label for="quantity">
+                Số Lượng <span class="req">*</span>
+              </label>
+              <input
+                type="number"
+                id="quantity"
+                placeholder="1 – 999"
+                min="1"
+                max="999"
+              />
+              <span class="msg" id="msg-quantity"></span>
+            </div>
+
+
+            <!-- ─── SECTION: Thông tin người thêm ─── -->
+            <div class="form-section">👤 Thông Tin Người Thêm</div>
+
+            <!-- Tên người thêm -->
+            <div class="field col-full">
+              <label for="librarian">
+                Tên Người Thêm <span class="req">*</span>
+              </label>
+              <input
+                type="text"
+                id="librarian"
+                placeholder="VD: Tran Thi Bich"
+                autocomplete="off"
+              />
+              <span class="msg" id="msg-librarian"></span>
+            </div>
+
+            <!-- Mã xác thực -->
+            <div class="field">
+              <label for="verifyCode">
+                Mã Xác Thực <span class="req">*</span>
+              </label>
+              <div class="code-wrap">
+                <input
+                  type="password"
+                  id="verifyCode"
+                  placeholder="Đúng 6 ký tự"
+                  maxlength="6"
+                  autocomplete="new-password"
+                />
+                <!-- Nút hiện/ẩn mã xác thực -->
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  onclick="toggleCode('verifyCode', this)"
+                  title="Hiện/ẩn mã"
+                >👁</button>
+              </div>
+              <span class="msg" id="msg-verifyCode"></span>
+            </div>
+
+            <!-- Xác nhận mã -->
+            <div class="field">
+              <label for="confirmCode">
+                Xác Nhận Mã <span class="req">*</span>
+              </label>
+              <div class="code-wrap">
+                <input
+                  type="password"
+                  id="confirmCode"
+                  placeholder="Nhập lại mã xác thực"
+                  maxlength="6"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  onclick="toggleCode('confirmCode', this)"
+                  title="Hiện/ẩn mã"
+                >👁</button>
+              </div>
+              <span class="msg" id="msg-confirmCode"></span>
+            </div>
+
+
+            <!-- ─── Nút hành động ─── -->
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                🔄 Nhập Lại
+              </button>
+              <button type="submit" class="btn btn-primary">
+                💾 Lưu Sách
+              </button>
+            </div>
+
+          </div><!-- /.form-grid -->
+        </form>
+
+      </div><!-- /.card-body -->
+    </div><!-- /.card -->
+
+  </div><!-- /.container -->
+
+
+  <!--
+    Script được đặt cuối body để đảm bảo HTML đã tải xong
+    trước khi JavaScript chạy và tìm các phần tử bằng getElementById.
+
+    Thứ tự load quan trọng:
+    1. data.js    → định nghĩa STORAGE_KEY, getBooks(), saveBooks(), getCurrentDate()
+    2. add-book.js → dùng các hàm từ data.js
+  -->
+  <script src="data.js"></script>
+  <script src="add-book.js"></script>
+
+</body>
+</html>
