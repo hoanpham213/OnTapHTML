@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quản Lý Thư Viện – Danh Sách Sách</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Toast container – nơi hiện thông báo nhanh -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ══ POPUP XÁC NHẬN XOÁ ══
+       Ẩn mặc định, JS sẽ thêm class "active" khi cần hiện.
+  -->
+  <div class="overlay" id="deleteOverlay">
+    <div class="popup">
+      <div class="popup-icon">🗑️</div>
+      <h3>Xác nhận xoá?</h3>
+      <p>
+        Bạn có chắc muốn xoá sách<br>
+        <!-- Tên sách sẽ được điền vào đây bởi library.js -->
+        <strong id="deleteBookName"></strong>?<br>
+        <small style="color:#999">Thao tác này không thể hoàn tác.</small>
+      </p>
+      <div class="popup-actions">
+        <button class="btn btn-secondary" onclick="dongPopupXoa()">Hủy</button>
+        <button class="btn btn-danger"    id="btnXacNhanXoa">Xoá ngay</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="container">
+
+    <!-- ══ HEADER ══ -->
+    <div class="header">
+      <div>
+        <h1>📚 Thư Viện Sách</h1>
+        <p>Library Management System</p>
+      </div>
+      <!-- Liên kết sang trang thêm sách mới -->
+      <a href="add-book.html">➕ Thêm Sách Mới</a>
+    </div>
+
+
+    <!-- ══ THỐNG KÊ THỂ LOẠI ══
+         Các con số sẽ được điền bởi library.js → hienThiThongKe()
+    -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-label">Tổng sách</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-khoahoc">0</div>
+        <div class="stat-label">Khoa học</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-vanhoc">0</div>
+        <div class="stat-label">Văn học</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-lichsu">0</div>
+        <div class="stat-label">Lịch sử</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-congnghe">0</div>
+        <div class="stat-label">Công nghệ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-khac">0</div>
+        <div class="stat-label">Khác</div>
+      </div>
+    </div>
+
+
+    <!-- ══ BẢNG DANH SÁCH ══ -->
+    <div class="card">
+      <div class="card-header">
+        📋 Danh Sách Sách
+      </div>
+
+      <div class="card-body">
+
+        <!-- Thanh tìm kiếm và lọc -->
+        <div class="toolbar">
+          <!-- Ô tìm kiếm: gõ ký tự là lọc ngay (oninput) -->
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Tìm theo mã sách hoặc tên sách..."
+              oninput="hienThiBang()"
+            />
+          </div>
+
+          <!-- Lọc theo thể loại -->
+          <select id="filterGenre" onchange="hienThiBang()">
+            <option value="">Tất cả thể loại</option>
+            <option value="Khoa học">Khoa học</option>
+            <option value="Văn học">Văn học</option>
+            <option value="Lịch sử">Lịch sử</option>
+            <option value="Công nghệ">Công nghệ</option>
+            <option value="Khác">Khác</option>
+          </select>
+
+          <!-- Sắp xếp -->
+          <select id="sortBy" onchange="hienThiBang()">
+            <option value="">Sắp xếp...</option>
+            <option value="title">Tên A → Z</option>
+            <option value="year_desc">Năm mới → cũ</option>
+            <option value="year_asc">Năm cũ → mới</option>
+            <option value="qty_desc">Số lượng nhiều → ít</option>
+          </select>
+        </div>
+
+        <!-- Số kết quả tìm thấy (cập nhật bởi library.js) -->
+        <p class="text-muted" id="resultCount" style="font-size:13px; color:#888; margin-bottom:10px;"></p>
+
+        <!-- Bảng dữ liệu -->
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Mã Sách</th>
+                <th>Tên Sách</th>
+                <th>Tác Giả</th>
+                <th>Thể Loại</th>
+                <th>Năm XB</th>
+                <th>SL</th>
+                <th>Người Thêm</th>
+                <th>Ngày Thêm</th>
+                <th>Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!--
+                Các dòng sách được tạo tự động bởi hàm hienThiBang() trong library.js.
+                Không cần viết <tr> thủ công ở đây.
+              -->
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /.card-body -->
+    </div><!-- /.card -->
+
+  </div><!-- /.container -->
+
+
+  <!--
+    Thứ tự load script quan trọng:
+    1. data.js     → cung cấp getBooks(), saveBooks()
+    2. library.js  → dùng các hàm từ data.js
+  -->
+  <script src="data.js"></script>
+  <script src="library.js"></script>
+
+</body>
+</html>
