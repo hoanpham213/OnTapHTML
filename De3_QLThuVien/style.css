@@ -1,0 +1,622 @@
+/* ============================================================
+   style.css – Quản lý Thư viện Sách
+   ============================================================
+   Mục lục:
+   1.  Reset & biến màu
+   2.  Body & layout
+   3.  Header
+   4.  Thẻ card (dùng để bọc form và bảng)
+   5.  Form – nhãn, input, select, textarea
+   6.  Nút bấm
+   7.  Bảng danh sách sách
+   8.  Thống kê thể loại
+   9.  Thanh tìm kiếm
+   10. Thông báo lỗi / thành công
+   11. Popup xác nhận xoá
+   12. Toast notification
+   13. Responsive (màn hình nhỏ)
+============================================================ */
+
+
+/* ─────────────────────────────────────────
+   1. RESET & BIẾN MÀU
+   Đặt màu vào biến CSS (--tên) để dễ thay đổi sau này
+───────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --blue:       #0d6efd;   /* Màu chính (Bootstrap blue) */
+  --blue-dark:  #0a58ca;
+  --blue-light: #e7f1ff;
+  --green:      #198754;
+  --red:        #dc3545;
+  --yellow:     #ffc107;
+  --gray:       #6c757d;
+  --gray-light: #f8f9fa;
+  --border:     #dee2e6;
+  --text:       #212529;
+  --text-muted: #6c757d;
+  --white:      #ffffff;
+  --radius:     8px;       /* Bo góc */
+  --shadow:     0 2px 8px rgba(0,0,0,0.1);
+}
+
+
+/* ─────────────────────────────────────────
+   2. BODY & LAYOUT
+───────────────────────────────────────── */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  background-color: #f0f2f5;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Khung bọc nội dung, căn giữa, giới hạn chiều rộng */
+.container {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+
+/* ─────────────────────────────────────────
+   3. HEADER
+───────────────────────────────────────── */
+.header {
+  background-color: var(--blue);
+  color: var(--white);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 28px;
+  border-radius: var(--radius);
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.header p {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* Link điều hướng trong header */
+.header a {
+  color: var(--white);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 6px;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.header a:hover {
+  background-color: rgba(255,255,255,0.15);
+}
+
+
+/* ─────────────────────────────────────────
+   4. CARD – khung trắng bọc nội dung
+───────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.card-header {
+  background-color: var(--gray-light);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.card-body {
+  padding: 20px;
+}
+
+
+/* ─────────────────────────────────────────
+   5. FORM – nhãn, input, select
+───────────────────────────────────────── */
+
+/* Lưới 2 cột cho form */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Trường chiếm full 2 cột */
+.form-grid .col-full {
+  grid-column: 1 / -1;
+}
+
+/* Nhóm một trường nhập liệu (label + input + msg lỗi) */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #444;
+}
+
+/* Dấu * bắt buộc */
+.field label .req {
+  color: var(--red);
+  margin-left: 2px;
+}
+
+/* Input và Select */
+.field input,
+.field select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  background: var(--white);
+  color: var(--text);
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(13,110,253,0.12);
+}
+
+/* Trạng thái lỗi – viền đỏ */
+.field input.error,
+.field select.error {
+  border-color: var(--red);
+  background-color: #fff5f5;
+}
+
+/* Trạng thái hợp lệ – viền xanh lá */
+.field input.valid,
+.field select.valid {
+  border-color: var(--green);
+  background-color: #f5fff8;
+}
+
+/* Dòng thông báo bên dưới mỗi input */
+.field .msg {
+  font-size: 12px;
+  min-height: 16px;
+  color: var(--text-muted);
+}
+.field .msg.error   { color: var(--red); }
+.field .msg.success { color: var(--green); }
+
+/* Wrap trường mật khẩu (có nút hiện/ẩn) */
+.code-wrap {
+  position: relative;
+}
+.code-wrap input {
+  width: 100%;
+  padding-right: 44px;
+}
+.toggle-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--gray);
+  padding: 2px;
+}
+.toggle-btn:hover { color: var(--text); }
+
+/* Tiêu đề section trong form */
+.form-section {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--blue);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--blue-light);
+  margin-top: 4px;
+}
+
+/* Dòng nút hành động (Lưu / Huỷ) */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  grid-column: 1 / -1;
+}
+
+
+/* ─────────────────────────────────────────
+   6. NÚT BẤM
+───────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s, transform 0.1s;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+
+/* Xanh dương – hành động chính */
+.btn-primary {
+  background-color: var(--blue);
+  color: var(--white);
+}
+.btn-primary:hover { background-color: var(--blue-dark); }
+
+/* Xám – huỷ / thoát */
+.btn-secondary {
+  background-color: #e9ecef;
+  color: #495057;
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background-color: #dee2e6; }
+
+/* Đỏ – xoá */
+.btn-danger {
+  background-color: var(--red);
+  color: var(--white);
+}
+.btn-danger:hover { background-color: #b02a37; }
+
+/* Nhỏ hơn – dùng trong bảng */
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: normal;
+}
+
+/* Xanh nhạt – Sửa */
+.btn-edit {
+  background-color: var(--blue-light);
+  color: var(--blue);
+  border: 1px solid #b6d4fe;
+}
+.btn-edit:hover { background-color: #b6d4fe; }
+
+/* Đỏ nhạt – Xoá */
+.btn-delete {
+  background-color: #fff0f0;
+  color: var(--red);
+  border: 1px solid #f5c6cb;
+}
+.btn-delete:hover { background-color: #f5c6cb; }
+
+
+/* ─────────────────────────────────────────
+   7. BẢNG DANH SÁCH SÁCH
+───────────────────────────────────────── */
+.table-wrapper {
+  overflow-x: auto; /* Cuộn ngang trên màn hình nhỏ */
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* Hàng tiêu đề */
+thead th {
+  background-color: var(--blue-light);
+  color: var(--blue-dark);
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 13px;
+  border-bottom: 2px solid #b6d4fe;
+  white-space: nowrap;
+}
+
+/* Các hàng dữ liệu */
+tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+/* Màu nền xen kẽ giúp dễ đọc hơn */
+tbody tr:nth-child(even) { background-color: #fafafa; }
+
+/* Highlight khi hover */
+tbody tr:hover { background-color: #f0f7ff; }
+
+/* Dòng thông báo khi bảng trống */
+.empty-row td {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Badge thể loại */
+.badge-genre {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  background-color: var(--blue-light);
+  color: var(--blue-dark);
+}
+
+/* Mã sách */
+.book-id {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: var(--blue);
+  font-size: 13px;
+}
+
+/* Thao tác (nút Sửa + Xoá trong bảng) */
+.action-cell {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+}
+
+
+/* ─────────────────────────────────────────
+   8. THỐNG KÊ THỂ LOẠI
+───────────────────────────────────────── */
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  text-align: center;
+  flex: 1;
+  min-width: 120px;
+}
+
+.stat-card .stat-num {
+  font-size: 26px;
+  font-weight: bold;
+  color: var(--blue);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Stat đầu tiên (Tổng sách) to hơn */
+.stat-card:first-child .stat-num { color: var(--blue); }
+.stat-card:nth-child(2) .stat-num { color: #9c36b5; }  /* Khoa học – tím */
+.stat-card:nth-child(3) .stat-num { color: #e67e22; }  /* Văn học – cam */
+.stat-card:nth-child(4) .stat-num { color: var(--green); } /* Lịch sử – xanh lá */
+.stat-card:nth-child(5) .stat-num { color: #2980b9; }  /* Công nghệ – xanh dương */
+.stat-card:nth-child(6) .stat-num { color: var(--gray); } /* Khác – xám */
+
+
+/* ─────────────────────────────────────────
+   9. THANH TÌM KIẾM & LỌC
+───────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-wrap .search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.search-wrap input {
+  width: 100%;
+  padding: 9px 12px 9px 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.search-wrap input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(13,110,253,0.12);
+}
+
+.toolbar select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--white);
+  cursor: pointer;
+  outline: none;
+  min-width: 140px;
+}
+
+
+/* ─────────────────────────────────────────
+   10. THÔNG BÁO LỖI / THÀNH CÔNG (alert box)
+───────────────────────────────────────── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: none; /* Ẩn mặc định, JS sẽ hiện khi cần */
+}
+.alert.show { display: block; }
+
+.alert-success {
+  background-color: #d1e7dd;
+  color: #0a3622;
+  border: 1px solid #a3cfbb;
+}
+.alert-danger {
+  background-color: #f8d7da;
+  color: #58151c;
+  border: 1px solid #f1aeb5;
+}
+
+
+/* ─────────────────────────────────────────
+   11. POPUP XÁC NHẬN XOÁ
+───────────────────────────────────────── */
+
+/* Lớp nền mờ phủ toàn màn hình */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+.overlay.active { display: flex; }
+
+/* Hộp popup */
+.popup {
+  background: var(--white);
+  border-radius: 10px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.popup .popup-icon { font-size: 44px; margin-bottom: 12px; }
+.popup h3         { font-size: 18px; margin-bottom: 8px; color: var(--red); }
+.popup p          { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+.popup p strong   { color: var(--text); }
+
+.popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+
+/* ─────────────────────────────────────────
+   12. TOAST NOTIFICATION
+   Hiện ở góc phải màn hình, tự biến mất sau 3s
+───────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--white);
+  min-width: 240px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  animation: toastSlide 0.3s ease;
+}
+
+.toast.success { background-color: var(--green); }
+.toast.error   { background-color: var(--red); }
+.toast.info    { background-color: var(--blue); }
+
+/* Hiệu ứng trượt vào */
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Hiệu ứng mờ khi biến mất */
+.toast.hide {
+  animation: toastFade 0.3s ease forwards;
+}
+@keyframes toastFade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+
+/* ─────────────────────────────────────────
+   13. RESPONSIVE – màn hình nhỏ (dưới 640px)
+───────────────────────────────────────── */
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr; /* 1 cột */
+  }
+  .form-grid .col-full {
+    grid-column: 1;
+  }
+  .stats-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
